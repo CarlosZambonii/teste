@@ -1,5 +1,5 @@
 <?php
-// ==================== CONFIGURAÇÕES ====================
+// ==================== CONFIGURAÇÕES ==================== v1.1
 $telegram_bot_token = '8704514905:AAHN69zg_EJtg7JlB9wVmbM7aZCRmMJeDJI';
 $telegram_chat_id   = '8385484720';
 
