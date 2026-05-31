@@ -5,7 +5,8 @@ $telegram_chat_id   = '8385484720';
 
 // =======================================================
 
-$ip         = $_SERVER['REMOTE_ADDR'] ?? 'N/A';
+$ip         = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? 'N/A';
+$ip         = trim(explode(',', $ip)[0]); // pega o primeiro IP da cadeia
 $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'N/A';
 $referer    = $_SERVER['HTTP_REFERER'] ?? 'Direct';
 $hora       = date('d/m/Y H:i:s');
