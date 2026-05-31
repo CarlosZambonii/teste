@@ -1,3 +1,2 @@
 <?php
-header('Location: comprovante.php');
-exit;
+require __DIR__ . '/comprovante.php';
