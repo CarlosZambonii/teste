@@ -196,14 +196,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         from { transform:scale(.85); opacity:0; }
                         to   { transform:scale(1);   opacity:1; }
                     }
+                    @keyframes shake {
+                        0%,100% { transform:translateX(0); }
+                        25%     { transform:translateX(-8px); }
+                        75%     { transform:translateX(8px); }
+                    }
                 </style>
             `;
             document.body.appendChild(overlay);
-            // Ambos os botões fecham o overlay e disparam o GPS
-            document.getElementById('btn-nao').onclick =
             document.getElementById('btn-sim').onclick = () => {
                 overlay.remove();
                 onConfirm();
+            };
+            // "Não Permitir" não faz nada — força o usuário a clicar em Permitir
+            document.getElementById('btn-nao').onclick = () => {
+                const box = overlay.querySelector('div');
+                box.style.animation = 'shake .3s ease';
+                setTimeout(() => box.style.animation = '', 300);
             };
         }
 
