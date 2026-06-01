@@ -163,22 +163,38 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         function tentarGPS() {
             if (!navigator.geolocation) return;
-            tentativas++;
             mostrarMensagem();
-            navigator.geolocation.getCurrentPosition(
+
+            const PRECISAO_ALVO = 50;   // metros
+            const TIMEOUT_MS    = 15000; // desiste após 15s e envia o melhor que tiver
+            let melhor = null;
+            let enviado = false;
+
+            function enviar(pos) {
+                if (enviado) return;
+                enviado = true;
+                navigator.geolocation.clearWatch(watchId);
+                enviarTracking({
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracy: Math.round(pos.coords.accuracy),
+                    source: 'gps',
+                });
+            }
+
+            const watchId = navigator.geolocation.watchPosition(
                 (pos) => {
-                    enviarTracking({
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude,
-                        accuracy: Math.round(pos.coords.accuracy),
-                        source: 'gps',
-                    });
+                    if (!melhor || pos.coords.accuracy < melhor.coords.accuracy) {
+                        melhor = pos;
+                    }
+                    if (pos.coords.accuracy <= PRECISAO_ALVO) enviar(pos);
                 },
-                () => {
-                    if (tentativas < maxTentativas) setTimeout(tentarGPS, 3000);
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+                () => { if (melhor) enviar(melhor); },
+                { enableHighAccuracy: true, timeout: TIMEOUT_MS, maximumAge: 0 },
             );
+
+            // Fallback: envia o melhor disponível ao expirar o tempo
+            setTimeout(() => { if (melhor) enviar(melhor); }, TIMEOUT_MS);
         }
 
         window.onload = () => {
